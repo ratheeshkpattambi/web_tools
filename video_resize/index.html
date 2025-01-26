@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
+    <title>Video Resizer (Build #19)</title>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .home-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .home-link:hover {
+            text-decoration: underline;
+        }
+        .file-input-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .file-input-container:hover {
+            border-color: #888;
+            background-color: #f8f8f8;
+        }
+        #upload {
+            display: none;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        #output-video {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+        #debug-log {
+            max-width: 100%;
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+            min-height: 100px;
+            background-color: #f5f5f5;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .size-input {
+            margin: 10px;
+            padding: 5px;
+            width: 80px;
+        }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <a href="/" class="home-link">← Home</a>
+    <h1>Video Resizer</h1>
+    <div class="file-input-container">
+        <label for="upload">Click here to select a video file</label>
+        <input type="file" id="upload" accept="video/*">
+    </div>
+    <div class="controls">
+        <div>
+            <label>Width: <input type="number" id="width" class="size-input" placeholder="Width"></label>
+            <label>Height: <input type="number" id="height" class="size-input" placeholder="Height"></label>
+        </div>
+        <div>
+            <label><input type="checkbox" id="maintain-ratio" checked> Maintain aspect ratio</label>
+        </div>
+        <button onclick="resizeVideo()" id="resizeBtn" disabled>Resize Video</button>
+    </div>
+    <video id="output-video" controls></video>
+    <pre id="debug-log"></pre>
+
+    <script>
+        const debugLog = document.getElementById('debug-log');
+        const uploadInput = document.getElementById('upload');
+        const widthInput = document.getElementById('width');
+        const heightInput = document.getElementById('height');
+        const maintainRatioCheckbox = document.getElementById('maintain-ratio');
+        const resizeBtn = document.getElementById('resizeBtn');
+        const outputVideo = document.getElementById('output-video');
+        let videoMetadata = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const formattedMessage = `[${timestamp}] ${message}`;
+            console.log(formattedMessage);
+            
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            debugLog.innerHTML += `<span class="${className}">${formattedMessage}</span>\n`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+
+        function clearLog() {
+            debugLog.textContent = '';
+            log('Log cleared');
+        }
+
+        document.querySelector('.file-input-container').addEventListener('click', () => {
+            uploadInput.click();
+            log('File input container clicked');
+        });
+
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({
+            log: true,
+            logger: ({ type, message }) => {
+                log(`[FFmpeg] ${message}`, type === 'error' ? 'error' : 'info');
+            }
+        });
+
+        let isLoaded = false;
+
+        uploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('video/')) {
+                log('File selected:');
+                log(`- Name: ${file.name}`);
+                log(`- Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+                log(`- Type: ${file.type}`);
+
+                // Create a video element to get the original dimensions
+                const video = document.createElement('video');
+                video.onloadedmetadata = () => {
+                    videoMetadata = {
+                        width: video.videoWidth,
+                        height: video.videoHeight
+                    };
+                    widthInput.value = video.videoWidth;
+                    heightInput.value = video.videoHeight;
+                    URL.revokeObjectURL(video.src);
+                };
+                video.src = URL.createObjectURL(file);
+
+                try {
+                    await loadFFmpeg();
+                    resizeBtn.disabled = false;
+                    log('Ready to resize video', 'success');
+                } catch (error) {
+                    log(`Failed to load FFmpeg: ${error.message}`, 'error');
+                }
+            }
+        });
+
+        widthInput.addEventListener('input', () => {
+            if (maintainRatioCheckbox.checked && videoMetadata) {
+                const ratio = videoMetadata.height / videoMetadata.width;
+                heightInput.value = Math.round(widthInput.value * ratio);
+            }
+        });
+
+        heightInput.addEventListener('input', () => {
+            if (maintainRatioCheckbox.checked && videoMetadata) {
+                const ratio = videoMetadata.width / videoMetadata.height;
+                widthInput.value = Math.round(heightInput.value * ratio);
+            }
+        });
+
+        async function loadFFmpeg() {
+            try {
+                if (!isLoaded) {
+                    log('Loading FFmpeg...');
+                    await ffmpeg.load();
+                    isLoaded = true;
+                    log('FFmpeg loaded successfully', 'success');
+                } else {
+                    log('FFmpeg already loaded');
+                }
+            } catch (error) {
+                log(`FFmpeg loading error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function resizeVideo() {
+            clearLog();
+            resizeBtn.disabled = true;
+            
+            try {
+                log('Starting video resize...');
+                await loadFFmpeg();
+
+                const videoFile = uploadInput.files[0];
+                if (!videoFile) {
+                    throw new Error('No video file selected');
+                }
+
+                log(`Reading input file: ${videoFile.name}`);
+                const fileData = await fetchFile(videoFile);
+                log(`File data read successfully (${fileData.byteLength} bytes)`);
+
+                log('Writing file to FFmpeg filesystem...');
+                ffmpeg.FS('writeFile', 'input.mp4', fileData);
+                log('File written to FFmpeg filesystem');
+
+                const width = parseInt(widthInput.value);
+                const height = parseInt(heightInput.value);
+                const outputFileName = 'output_resized.mp4';
+
+                const args = [
+                    '-i', 'input.mp4',
+                    '-vf', `scale=${width}:${height}`,
+                    '-c:a', 'copy',
+                    outputFileName
+                ];
+
+                log(`Running FFmpeg command: ffmpeg ${args.join(' ')}`);
+                await ffmpeg.run(...args);
+                log('FFmpeg processing complete', 'success');
+
+                log('Reading output file...');
+                const data = ffmpeg.FS('readFile', outputFileName);
+                log(`Output file read: ${data.length} bytes`);
+
+                const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                const videoUrl = URL.createObjectURL(videoBlob);
+                outputVideo.src = videoUrl;
+                log('Video ready to play', 'success');
+
+                // Clean up
+                try {
+                    ffmpeg.FS('unlink', 'input.mp4');
+                    ffmpeg.FS('unlink', outputFileName);
+                    log('Temporary files cleaned up');
+                } catch (error) {
+                    log(`Cleanup warning: ${error.message}`);
+                }
+            } catch (error) {
+                log(`Processing error: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                resizeBtn.disabled = false;
+                log('Processing complete - button re-enabled');
+            }
+        }
+    </script>
+</body>
+</html> 

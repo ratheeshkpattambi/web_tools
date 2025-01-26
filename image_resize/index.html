@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Resizer (Build #19)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .home-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .home-link:hover {
+            text-decoration: underline;
+        }
+        .file-input-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .file-input-container:hover {
+            border-color: #888;
+            background-color: #f8f8f8;
+        }
+        #upload {
+            display: none;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .preview {
+            max-width: 100%;
+            margin: 20px 0;
+        }
+        #output-image {
+            max-width: 100%;
+            height: auto;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .size-input {
+            margin: 10px;
+            padding: 5px;
+            width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="home-link">← Home</a>
+    <h1>Image Resizer</h1>
+    <div class="file-input-container">
+        <label for="upload">Click here to select an image file</label>
+        <input type="file" id="upload" accept="image/*">
+    </div>
+    <div class="controls">
+        <div>
+            <label>Width: <input type="number" id="width" class="size-input" placeholder="Width"></label>
+            <label>Height: <input type="number" id="height" class="size-input" placeholder="Height"></label>
+        </div>
+        <div>
+            <label><input type="checkbox" id="maintain-ratio" checked> Maintain aspect ratio</label>
+        </div>
+        <button onclick="resizeImage()" id="resizeBtn" disabled>Resize Image</button>
+        <button onclick="downloadImage()" id="downloadBtn" disabled>Download</button>
+    </div>
+    <div class="preview">
+        <h3>Preview:</h3>
+        <img id="output-image">
+    </div>
+
+    <script>
+        const uploadInput = document.getElementById('upload');
+        const widthInput = document.getElementById('width');
+        const heightInput = document.getElementById('height');
+        const maintainRatioCheckbox = document.getElementById('maintain-ratio');
+        const resizeBtn = document.getElementById('resizeBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const outputImage = document.getElementById('output-image');
+        let originalImage = null;
+
+        document.querySelector('.file-input-container').addEventListener('click', () => {
+            uploadInput.click();
+        });
+
+        uploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    originalImage = new Image();
+                    originalImage.onload = () => {
+                        widthInput.value = originalImage.width;
+                        heightInput.value = originalImage.height;
+                        outputImage.src = event.target.result;
+                        resizeBtn.disabled = false;
+                    };
+                    originalImage.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        widthInput.addEventListener('input', () => {
+            if (maintainRatioCheckbox.checked && originalImage) {
+                const ratio = originalImage.height / originalImage.width;
+                heightInput.value = Math.round(widthInput.value * ratio);
+            }
+        });
+
+        heightInput.addEventListener('input', () => {
+            if (maintainRatioCheckbox.checked && originalImage) {
+                const ratio = originalImage.width / originalImage.height;
+                widthInput.value = Math.round(heightInput.value * ratio);
+            }
+        });
+
+        function resizeImage() {
+            if (!originalImage) return;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = parseInt(widthInput.value);
+            canvas.height = parseInt(heightInput.value);
+            
+            ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+            
+            outputImage.src = canvas.toDataURL();
+            downloadBtn.disabled = false;
+        }
+
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.download = 'resized-image.png';
+            link.href = outputImage.src;
+            link.click();
+        }
+    </script>
+</body>
+</html> 
