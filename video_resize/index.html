@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
-    <title>Video Resizer (Build #19)</title>
+    <title>Video Resizer (Build #21)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
     <style>
         body {
@@ -82,7 +86,7 @@
         <div>Drag and drop a video file here</div>
         <div>- or -</div>
         <div class="upload-buttons">
-            <button onclick="document.getElementById('upload').click()">Browse Files</button>
+            <button class="btn" onclick="document.getElementById('upload').click()">Browse Files</button>
         </div>
         <input type="file" id="upload" accept="video/*">
     </div>
@@ -94,7 +98,7 @@
         <div>
             <label><input type="checkbox" id="maintain-ratio" checked> Maintain aspect ratio</label>
         </div>
-        <button onclick="resizeVideo()" id="resizeBtn" disabled>Resize Video</button>
+        <button class="btn" onclick="resizeVideo()" id="resizeBtn" disabled>Resize Video</button>
     </div>
     <video id="output-video" controls></video>
     <pre id="debug-log"></pre>

@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Resizer (Build #19)</title>
+    <title>Image Resizer (Build #21)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -52,7 +56,7 @@
             padding: 10px 20px;
             margin: 5px;
             cursor: pointer;
-        }
+        } 
         .size-input {
             margin: 10px;
             padding: 5px;
@@ -63,8 +67,12 @@
 <body>
     <a href="/" class="home-link">← Home</a>
     <h1>Image Resizer</h1>
-    <div class="file-input-container">
-        <label for="upload">Click here to select an image file</label>
+    <div class="file-input-container" id="dropZone">
+        <div>Drag and drop an image file here</div>
+        <div>- or -</div>
+        <div class="upload-buttons">
+            <button class="btn" onclick="document.getElementById('upload').click()">Browse Files</button>
+        </div>
         <input type="file" id="upload" accept="image/*">
     </div>
     <div class="controls">
@@ -75,8 +83,8 @@
         <div>
             <label><input type="checkbox" id="maintain-ratio" checked> Maintain aspect ratio</label>
         </div>
-        <button onclick="resizeImage()" id="resizeBtn" disabled>Resize Image</button>
-        <button onclick="downloadImage()" id="downloadBtn" disabled>Download</button>
+        <button class="btn" onclick="resizeImage()" id="resizeBtn" disabled>Resize Image</button>
+        <button class="btn" onclick="downloadImage()" id="downloadBtn" disabled>Download</button>
     </div>
     <div class="preview">
         <h3>Preview:</h3>
