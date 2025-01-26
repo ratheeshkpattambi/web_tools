@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
-    <title>Video Resizer (Build #23)</title>
+    <title>Video Resizer (Build #24)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -161,6 +161,96 @@
             border-radius: 0.25rem;
             margin-top: 0.25rem;
         }
+        .video-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .video-box {
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .video-box h3 {
+            margin: 0 0 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+        }
+        .video-preview {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .video-preview video {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .video-preview.empty {
+            background: #e2e8f0;
+            color: var(--text-secondary);
+            flex-direction: column;
+            gap: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .video-preview.empty:hover {
+            background: #cbd5e1;
+        }
+        .video-preview.empty i {
+            font-size: 3rem;
+            color: var(--text-secondary);
+        }
+        .info-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .info-section {
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .info-section h3 {
+            margin: 0;
+            padding: 1rem;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .info-section h3 i.toggle {
+            margin-left: auto;
+        }
+        .info-content {
+            padding: 1rem;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .progress-container {
+            margin: 1rem 0;
+        }
+        #upload {
+            display: none;
+        }
+        .settings-grid {
+            margin-top: 2rem;
+        }
     </style>
 </head>
 <body>
@@ -172,52 +262,92 @@
         <i class="fas fa-video"></i>
         Video Resizer
     </h1>
-    <div class="file-input-container" id="dropZone">
-        <i class="fas fa-cloud-upload-alt"></i>
-        <div>Drag and drop a video file here</div>
-        <div>- or -</div>
-        <div class="upload-buttons">
-            <button class="btn" onclick="document.getElementById('upload').click()">
-                <i class="fas fa-folder-open"></i>
-                Browse Files
-            </button>
-        </div>
-        <input type="file" id="upload" accept="video/*">
-    </div>
 
     <!-- Progress Bar -->
-    <div class="progress-container" id="progressContainer">
+    <div class="progress-container" id="progressContainer" style="display: none;">
         <div class="progress-bar" id="progressBar">
             <div class="progress-text">0%</div>
         </div>
     </div>
 
-    <!-- Video Info Section -->
-    <div class="collapsible collapsed" onclick="toggleCollapsible(this)" id="videoInfoSection">
-        <h3>
-            <i class="fas fa-info-circle"></i>
-            Video Information
-            <i class="fas fa-chevron-down toggle"></i>
-        </h3>
-        <div class="collapsible-content collapsed">
-            <div class="video-info">
-                <div class="video-info-section">
-                    <h4>Input Video</h4>
-                    <div id="inputVideoInfo">
-                        <p>No file selected</p>
+    <!-- Main Video Container -->
+    <div class="video-container">
+        <!-- Input Video -->
+        <div class="video-box">
+            <h3>
+                <i class="fas fa-file-video"></i>
+                Input Video
+            </h3>
+            <div class="video-preview empty" id="inputPreview">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <div>Click or drag video here</div>
+                <input type="file" id="upload" accept="video/*">
+            </div>
+            <div id="inputVideoInfo">
+                <p>No file selected</p>
+            </div>
+        </div>
+
+        <!-- Output Video -->
+        <div class="video-box">
+            <h3>
+                <i class="fas fa-file-export"></i>
+                Output Video
+            </h3>
+            <div class="video-preview">
+                <video id="output-video" controls></video>
+            </div>
+            <div id="outputVideoInfo">
+                <p>Not processed yet</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Sections -->
+    <div class="info-sections">
+        <!-- Video Information -->
+        <div class="info-section">
+            <h3 onclick="toggleCollapsible(this.parentElement)">
+                <i class="fas fa-info-circle"></i>
+                Video Information
+                <i class="fas fa-chevron-down toggle"></i>
+            </h3>
+            <div class="collapsible-content">
+                <div class="info-content">
+                    <div class="info-grid">
+                        <div>
+                            <h4>Input Video</h4>
+                            <div id="inputVideoDetails">
+                                <p>No file selected</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4>Output Video</h4>
+                            <div id="outputVideoDetails">
+                                <p>Not processed yet</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="video-info-section">
-                    <h4>Output Video</h4>
-                    <div id="outputVideoInfo">
-                        <p>Not processed yet</p>
-                    </div>
+            </div>
+        </div>
+
+        <!-- Processing Log -->
+        <div class="info-section">
+            <h3 onclick="toggleCollapsible(this.parentElement)">
+                <i class="fas fa-terminal"></i>
+                Processing Log
+                <i class="fas fa-chevron-down toggle"></i>
+            </h3>
+            <div class="collapsible-content">
+                <div class="info-content">
+                    <div id="log"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Resize Settings -->
+    <!-- Settings -->
     <div class="controls">
         <div class="settings-grid">
             <div class="settings-section">
@@ -299,28 +429,6 @@
             <i class="fas fa-download"></i>
             Download
         </button>
-    </div>
-
-    <div class="preview">
-        <h3>
-            <i class="fas fa-eye"></i>
-            Preview:
-        </h3>
-        <video id="output-video" controls></video>
-    </div>
-
-    <!-- Debug Log Section -->
-    <div class="collapsible collapsed" onclick="toggleCollapsible(this)" id="debugLogSection">
-        <h3>
-            <i class="fas fa-terminal"></i>
-            Processing Log
-            <i class="fas fa-chevron-down toggle"></i>
-        </h3>
-        <div class="collapsible-content collapsed">
-            <div id="debug-log" class="debug-log">
-                <div id="log"></div>
-            </div>
-        </div>
     </div>
 
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
@@ -417,51 +525,76 @@
             log('Log cleared');
         }
 
-        // Drag and drop handlers
+        // Remove old drag and drop handlers
         const dropZone = document.getElementById('dropZone');
+        if (dropZone) {
+            dropZone.removeEventListener('dragover', () => {});
+            dropZone.removeEventListener('dragleave', () => {});
+            dropZone.removeEventListener('drop', () => {});
+        }
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                uploadInput.files = files;
-                handleFileSelection(files[0]);
+        // Update file input change handler
+        uploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelection(file);
             }
         });
 
-        async function getVideoMetadata(videoFile) {
-            return new Promise((resolve) => {
-                const video = document.createElement('video');
-                video.preload = 'metadata';
-                video.onloadedmetadata = () => {
-                    const metadata = {
-                        width: video.videoWidth,
-                        height: video.videoHeight,
-                        duration: video.duration,
-                        size: videoFile.size
-                    };
-                    URL.revokeObjectURL(video.src);
-                    resolve(metadata);
-                };
-                video.src = URL.createObjectURL(videoFile);
-            });
-        }
+        // Consolidated drag and drop handlers for input preview
+        const inputPreview = document.getElementById('inputPreview');
+        
+        inputPreview.addEventListener('click', (e) => {
+            // Prevent click from bubbling if we already have a video
+            if (!inputPreview.classList.contains('empty')) {
+                e.stopPropagation();
+                return;
+            }
+            document.getElementById('upload').click();
+        });
+        
+        inputPreview.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (inputPreview.classList.contains('empty')) {
+                inputPreview.style.background = '#cbd5e1';
+            }
+        });
 
-        // File selection handler
+        inputPreview.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            if (inputPreview.classList.contains('empty')) {
+                inputPreview.style.background = '';
+            }
+        });
+
+        inputPreview.addEventListener('drop', (e) => {
+            e.preventDefault();
+            inputPreview.style.background = '';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('video/')) {
+                uploadInput.files = files;
+                handleFileSelection(files[0]);
+            } else {
+                log('Please drop a valid video file', 'error');
+            }
+        });
+
+        // Update handleFileSelection to properly handle the preview state
         async function handleFileSelection(file) {
             if (file && file.type.startsWith('video/')) {
+                const inputPreview = document.getElementById('inputPreview');
+                
+                // Create video element
+                const video = document.createElement('video');
+                video.controls = true;
+                video.src = URL.createObjectURL(file);
+                
+                // Clear the preview and add the video
+                inputPreview.innerHTML = '';
+                inputPreview.appendChild(video);
+                inputPreview.classList.remove('empty');
+
                 log('File selected:');
                 log(`- Name: ${file.name}`);
                 log(`- Size: ${formatFileSize(file.size)}`);
@@ -479,6 +612,12 @@
                     codec: file.type.split('/')[1].toUpperCase()
                 });
 
+                // Also update the detailed info
+                updateVideoInfo('inputDetails', {
+                    ...metadata,
+                    codec: file.type.split('/')[1].toUpperCase()
+                });
+
                 loadFFmpeg()
                     .then(() => {
                         resizeBtn.disabled = false;
@@ -491,14 +630,6 @@
                 log('Please select a valid video file', 'error');
             }
         }
-
-        // Update file input change handler
-        uploadInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                handleFileSelection(file);
-            }
-        });
 
         const { createFFmpeg, fetchFile } = FFmpeg;
         const ffmpeg = createFFmpeg({
