@@ -1,0 +1,59 @@
+name: Deploy static content to Pages (Build #10)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      
+      - name: Create headers files
+        run: |
+          # Create _headers file
+          echo "/*" > _headers
+          echo "  Cross-Origin-Opener-Policy: same-origin" >> _headers
+          echo "  Cross-Origin-Embedder-Policy: require-corp" >> _headers
+          echo "  Access-Control-Allow-Origin: *" >> _headers
+          echo "  Cross-Origin-Resource-Policy: cross-origin" >> _headers
+          
+          # Create .nojekyll to bypass Jekyll processing
+          touch .nojekyll
+          
+          # Create CORS configuration
+          echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > cors.xml
+          echo "<CORSConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">" >> cors.xml
+          echo "  <CORSRule>" >> cors.xml
+          echo "    <AllowedOrigin>*</AllowedOrigin>" >> cors.xml
+          echo "    <AllowedMethod>GET</AllowedMethod>" >> cors.xml
+          echo "    <AllowedHeader>*</AllowedHeader>" >> cors.xml
+          echo "  </CORSRule>" >> cors.xml
+          echo "</CORSConfiguration>" >> cors.xml
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 
