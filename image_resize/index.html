@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Resizer (Build #21)</title>
+    <title>Image Resizer (Build #22)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/styles.css">
     <style>
         body {
@@ -65,29 +66,58 @@
     </style>
 </head>
 <body>
-    <a href="/" class="home-link">← Home</a>
-    <h1>Image Resizer</h1>
+    <a href="/" class="home-link">
+        <i class="fas fa-arrow-left"></i>
+        Home
+    </a>
+    <h1>
+        <i class="fas fa-image"></i>
+        Image Resizer
+    </h1>
     <div class="file-input-container" id="dropZone">
+        <i class="fas fa-cloud-upload-alt"></i>
         <div>Drag and drop an image file here</div>
         <div>- or -</div>
         <div class="upload-buttons">
-            <button class="btn" onclick="document.getElementById('upload').click()">Browse Files</button>
+            <button class="btn" onclick="document.getElementById('upload').click()">
+                <i class="fas fa-folder-open"></i>
+                Browse Files
+            </button>
         </div>
         <input type="file" id="upload" accept="image/*">
     </div>
     <div class="controls">
         <div>
-            <label>Width: <input type="number" id="width" class="size-input" placeholder="Width"></label>
-            <label>Height: <input type="number" id="height" class="size-input" placeholder="Height"></label>
+            <label>
+                <i class="fas fa-arrows-alt-h"></i>
+                Width: <input type="number" id="width" class="size-input" placeholder="Width">
+            </label>
+            <label>
+                <i class="fas fa-arrows-alt-v"></i>
+                Height: <input type="number" id="height" class="size-input" placeholder="Height">
+            </label>
         </div>
         <div>
-            <label><input type="checkbox" id="maintain-ratio" checked> Maintain aspect ratio</label>
+            <label>
+                <input type="checkbox" id="maintain-ratio" checked>
+                <i class="fas fa-link"></i>
+                Maintain aspect ratio
+            </label>
         </div>
-        <button class="btn" onclick="resizeImage()" id="resizeBtn" disabled>Resize Image</button>
-        <button class="btn" onclick="downloadImage()" id="downloadBtn" disabled>Download</button>
+        <button class="btn" onclick="resizeImage()" id="resizeBtn" disabled>
+            <i class="fas fa-compress-arrows-alt"></i>
+            Resize Image
+        </button>
+        <button class="btn" onclick="downloadImage()" id="downloadBtn" disabled>
+            <i class="fas fa-download"></i>
+            Download
+        </button>
     </div>
     <div class="preview">
-        <h3>Preview:</h3>
+        <h3>
+            <i class="fas fa-eye"></i>
+            Preview:
+        </h3>
         <img id="output-image">
     </div>
 
