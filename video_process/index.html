@@ -37,22 +37,32 @@
             padding: 20px;
             border: 2px dashed #ccc;
             border-radius: 8px;
-            cursor: pointer;
+            transition: all 0.3s ease;
         }
-        .file-input-container:hover {
-            border-color: #888;
-            background-color: #f8f8f8;
+        .file-input-container.drag-over {
+            border-color: #007bff;
+            background-color: rgba(0,123,255,0.1);
+        }
+        .upload-buttons {
+            margin: 15px 0;
+        }
+        .upload-buttons button {
+            margin: 0 10px;
         }
         #upload {
-            display: block;
-            margin: 10px auto;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>FFmpeg WebAssembly Video Processor (Build #17)</h1>
-    <div class="file-input-container">
-        <label for="upload">Click here to select a video file:</label>
+    <a href="/" class="home-link">← Home</a>
+    <h1>Video Processor</h1>
+    <div class="file-input-container" id="dropZone">
+        <div>Drag and drop a video file here</div>
+        <div>- or -</div>
+        <div class="upload-buttons">
+            <button onclick="document.getElementById('upload').click()">Browse Files</button>
+        </div>
         <input type="file" id="upload" accept="video/*">
     </div>
     <div>
@@ -86,10 +96,58 @@
 
         log('Initializing application...');
 
-        // Add click handler for the container
-        document.querySelector('.file-input-container').addEventListener('click', () => {
-            uploadInput.click();
-            log('File input container clicked');
+        // Drag and drop handlers
+        const dropZone = document.getElementById('dropZone');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadInput.files = files;
+                handleFileSelection(files[0]);
+            }
+        });
+
+        // File selection handler
+        function handleFileSelection(file) {
+            if (file && file.type.startsWith('video/')) {
+                log('File selected:');
+                log(`- Name: ${file.name}`);
+                log(`- Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+                log(`- Type: ${file.type}`);
+
+                loadFFmpeg()
+                    .then(() => {
+                        grayscaleBtn.disabled = false;
+                        trimBtn.disabled = false;
+                        log('Ready to process video', 'success');
+                    })
+                    .catch(error => {
+                        log(`Failed to load FFmpeg: ${error.message}`, 'error');
+                    });
+            } else {
+                log('Please select a valid video file', 'error');
+            }
+        }
+
+        // Update file input change handler
+        uploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelection(file);
+            }
         });
 
         // Create FFmpeg instance
@@ -103,40 +161,6 @@
         log('FFmpeg instance created');
 
         let isLoaded = false;
-
-        // Add both change and click handlers for the file input
-        uploadInput.addEventListener('click', (e) => {
-            log('File input clicked');
-        });
-
-        uploadInput.addEventListener('change', async (e) => {
-            log('File input change event triggered');
-            const file = e.target.files[0];
-            if (file) {
-                log('File selected:');
-                log(`- Name: ${file.name}`);
-                log(`- Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-                log(`- Type: ${file.type}`);
-                
-                if (!file.type.startsWith('video/')) {
-                    log('Warning: Selected file is not a video file', 'error');
-                    return;
-                }
-
-                try {
-                    await loadFFmpeg();
-                    grayscaleBtn.disabled = false;
-                    trimBtn.disabled = false;
-                    log('Buttons enabled - ready to process video', 'success');
-                } catch (error) {
-                    log(`Failed to load FFmpeg: ${error.message}`, 'error');
-                }
-            } else {
-                log('No file selected', 'error');
-                grayscaleBtn.disabled = true;
-                trimBtn.disabled = true;
-            }
-        });
 
         async function loadFFmpeg() {
             try {

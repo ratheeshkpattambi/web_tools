@@ -30,11 +30,17 @@
             padding: 20px;
             border: 2px dashed #ccc;
             border-radius: 8px;
-            cursor: pointer;
+            transition: all 0.3s ease;
         }
-        .file-input-container:hover {
-            border-color: #888;
-            background-color: #f8f8f8;
+        .file-input-container.drag-over {
+            border-color: #007bff;
+            background-color: rgba(0,123,255,0.1);
+        }
+        .upload-buttons {
+            margin: 15px 0;
+        }
+        .upload-buttons button {
+            margin: 0 10px;
         }
         #upload {
             display: none;
@@ -72,8 +78,12 @@
 <body>
     <a href="/" class="home-link">← Home</a>
     <h1>Video Resizer</h1>
-    <div class="file-input-container">
-        <label for="upload">Click here to select a video file</label>
+    <div class="file-input-container" id="dropZone">
+        <div>Drag and drop a video file here</div>
+        <div>- or -</div>
+        <div class="upload-buttons">
+            <button onclick="document.getElementById('upload').click()">Browse Files</button>
+        </div>
         <input type="file" id="upload" accept="video/*">
     </div>
     <div class="controls">
@@ -114,23 +124,32 @@
             log('Log cleared');
         }
 
-        document.querySelector('.file-input-container').addEventListener('click', () => {
-            uploadInput.click();
-            log('File input container clicked');
+        // Drag and drop handlers
+        const dropZone = document.getElementById('dropZone');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
         });
 
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({
-            log: true,
-            logger: ({ type, message }) => {
-                log(`[FFmpeg] ${message}`, type === 'error' ? 'error' : 'info');
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadInput.files = files;
+                handleFileSelection(files[0]);
             }
         });
 
-        let isLoaded = false;
-
-        uploadInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
+        // File selection handler
+        function handleFileSelection(file) {
             if (file && file.type.startsWith('video/')) {
                 log('File selected:');
                 log(`- Name: ${file.name}`);
@@ -150,29 +169,36 @@
                 };
                 video.src = URL.createObjectURL(file);
 
-                try {
-                    await loadFFmpeg();
-                    resizeBtn.disabled = false;
-                    log('Ready to resize video', 'success');
-                } catch (error) {
-                    log(`Failed to load FFmpeg: ${error.message}`, 'error');
-                }
+                loadFFmpeg()
+                    .then(() => {
+                        resizeBtn.disabled = false;
+                        log('Ready to resize video', 'success');
+                    })
+                    .catch(error => {
+                        log(`Failed to load FFmpeg: ${error.message}`, 'error');
+                    });
+            } else {
+                log('Please select a valid video file', 'error');
+            }
+        }
+
+        // Update file input change handler
+        uploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelection(file);
             }
         });
 
-        widthInput.addEventListener('input', () => {
-            if (maintainRatioCheckbox.checked && videoMetadata) {
-                const ratio = videoMetadata.height / videoMetadata.width;
-                heightInput.value = Math.round(widthInput.value * ratio);
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({
+            log: true,
+            logger: ({ type, message }) => {
+                log(`[FFmpeg] ${message}`, type === 'error' ? 'error' : 'info');
             }
         });
 
-        heightInput.addEventListener('input', () => {
-            if (maintainRatioCheckbox.checked && videoMetadata) {
-                const ratio = videoMetadata.width / videoMetadata.height;
-                widthInput.value = Math.round(heightInput.value * ratio);
-            }
-        });
+        let isLoaded = false;
 
         async function loadFFmpeg() {
             try {
@@ -251,6 +277,20 @@
                 log('Processing complete - button re-enabled');
             }
         }
+
+        widthInput.addEventListener('input', () => {
+            if (maintainRatioCheckbox.checked && videoMetadata) {
+                const ratio = videoMetadata.height / videoMetadata.width;
+                heightInput.value = Math.round(widthInput.value * ratio);
+            }
+        });
+
+        heightInput.addEventListener('input', () => {
+            if (maintainRatioCheckbox.checked && videoMetadata) {
+                const ratio = videoMetadata.width / videoMetadata.height;
+                widthInput.value = Math.round(heightInput.value * ratio);
+            }
+        });
     </script>
 </body>
 </html> 
