@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
-    <title>Video Resizer (Build #22)</title>
+    <title>Video Resizer (Build #23)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/styles.css">
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -78,6 +77,90 @@
         }
         .error { color: red; }
         .success { color: green; }
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+        .collapsible i.toggle {
+            transition: transform 0.3s ease;
+        }
+        .collapsible.collapsed i.toggle {
+            transform: rotate(-90deg);
+        }
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+        .progress-container {
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            margin: 1rem 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: var(--primary-color);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+        .progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 0.875rem;
+            line-height: 20px;
+        }
+        .video-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            text-align: left;
+            margin-bottom: 1rem;
+        }
+        .video-info-section {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        .video-info h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-secondary);
+        }
+        .video-info p {
+            margin: 0.25rem 0;
+            font-family: monospace;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .settings-section {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        .settings-section label {
+            display: block;
+            margin: 0.5rem 0;
+        }
+        .settings-section select,
+        .settings-section input[type="number"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            margin-top: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -101,24 +184,113 @@
         </div>
         <input type="file" id="upload" accept="video/*">
     </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-text">0%</div>
+        </div>
+    </div>
+
+    <!-- Video Info Section -->
+    <div class="collapsible collapsed" onclick="toggleCollapsible(this)" id="videoInfoSection">
+        <h3>
+            <i class="fas fa-info-circle"></i>
+            Video Information
+            <i class="fas fa-chevron-down toggle"></i>
+        </h3>
+        <div class="collapsible-content collapsed">
+            <div class="video-info">
+                <div class="video-info-section">
+                    <h4>Input Video</h4>
+                    <div id="inputVideoInfo">
+                        <p>No file selected</p>
+                    </div>
+                </div>
+                <div class="video-info-section">
+                    <h4>Output Video</h4>
+                    <div id="outputVideoInfo">
+                        <p>Not processed yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resize Settings -->
     <div class="controls">
-        <div>
-            <label>
-                <i class="fas fa-arrows-alt-h"></i>
-                Width: <input type="number" id="width" class="size-input" placeholder="Width">
-            </label>
-            <label>
-                <i class="fas fa-arrows-alt-v"></i>
-                Height: <input type="number" id="height" class="size-input" placeholder="Height">
-            </label>
+        <div class="settings-grid">
+            <div class="settings-section">
+                <h3>
+                    <i class="fas fa-expand"></i>
+                    Resize Settings
+                </h3>
+                <label>
+                    Resize Mode:
+                    <select id="resizeMode" onchange="updateResizeInputs()">
+                        <option value="pixels">Pixels</option>
+                        <option value="percentage">Percentage</option>
+                    </select>
+                </label>
+                <div id="pixelInputs">
+                    <label>
+                        <i class="fas fa-arrows-alt-h"></i>
+                        Width:
+                        <input type="number" id="width" class="size-input" placeholder="Width">
+                    </label>
+                    <label>
+                        <i class="fas fa-arrows-alt-v"></i>
+                        Height:
+                        <input type="number" id="height" class="size-input" placeholder="Height">
+                    </label>
+                </div>
+                <div id="percentageInput" style="display: none;">
+                    <label>
+                        <i class="fas fa-percentage"></i>
+                        Scale:
+                        <input type="number" id="scale" class="size-input" placeholder="100" value="100">
+                    </label>
+                </div>
+                <label>
+                    <input type="checkbox" id="maintain-ratio" checked>
+                    <i class="fas fa-link"></i>
+                    Maintain aspect ratio
+                </label>
+            </div>
+
+            <div class="settings-section">
+                <h3>
+                    <i class="fas fa-sliders-h"></i>
+                    Encoding Settings
+                </h3>
+                <label>
+                    Quality (CRF):
+                    <input type="number" id="crf" value="23" min="0" max="51" title="Lower value = higher quality (0-51)">
+                </label>
+                <label>
+                    Preset:
+                    <select id="preset">
+                        <option value="medium">Medium (Default)</option>
+                        <option value="ultrafast">Ultra Fast</option>
+                        <option value="superfast">Super Fast</option>
+                        <option value="veryfast">Very Fast</option>
+                        <option value="faster">Faster</option>
+                        <option value="fast">Fast</option>
+                        <option value="slow">Slow</option>
+                        <option value="slower">Slower</option>
+                        <option value="veryslow">Very Slow</option>
+                    </select>
+                </label>
+                <label>
+                    Codec:
+                    <select id="codec">
+                        <option value="libx264">H.264</option>
+                        <option value="libx265">H.265 (HEVC)</option>
+                    </select>
+                </label>
+            </div>
         </div>
-        <div>
-            <label>
-                <input type="checkbox" id="maintain-ratio" checked>
-                <i class="fas fa-link"></i>
-                Maintain aspect ratio
-            </label>
-        </div>
+
         <button class="btn" onclick="resizeVideo()" id="resizeBtn" disabled>
             <i class="fas fa-compress-arrows-alt"></i>
             Resize Video
@@ -128,6 +300,7 @@
             Download
         </button>
     </div>
+
     <div class="preview">
         <h3>
             <i class="fas fa-eye"></i>
@@ -135,23 +308,98 @@
         </h3>
         <video id="output-video" controls></video>
     </div>
-    <div id="debug-log" class="debug-log">
+
+    <!-- Debug Log Section -->
+    <div class="collapsible collapsed" onclick="toggleCollapsible(this)" id="debugLogSection">
         <h3>
             <i class="fas fa-terminal"></i>
-            Processing Log:
+            Processing Log
+            <i class="fas fa-chevron-down toggle"></i>
         </h3>
-        <div id="log"></div>
+        <div class="collapsible-content collapsed">
+            <div id="debug-log" class="debug-log">
+                <div id="log"></div>
+            </div>
+        </div>
     </div>
 
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
     <script>
         const debugLog = document.getElementById('debug-log');
         const uploadInput = document.getElementById('upload');
         const widthInput = document.getElementById('width');
         const heightInput = document.getElementById('height');
+        const scaleInput = document.getElementById('scale');
         const maintainRatioCheckbox = document.getElementById('maintain-ratio');
         const resizeBtn = document.getElementById('resizeBtn');
         const outputVideo = document.getElementById('output-video');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = progressBar.querySelector('.progress-text');
         let videoMetadata = null;
+        let totalFrames = 0;
+        let processedFrames = 0;
+
+        function formatFileSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+            return `${size.toFixed(2)} ${units[unitIndex]}`;
+        }
+
+        function updateProgress(progress) {
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress.toFixed(1)}%`;
+        }
+
+        function toggleCollapsible(element) {
+            element.classList.toggle('collapsed');
+            const content = element.querySelector('.collapsible-content');
+            content.classList.toggle('collapsed');
+        }
+
+        function updateResizeInputs() {
+            const mode = document.getElementById('resizeMode').value;
+            const pixelInputs = document.getElementById('pixelInputs');
+            const percentageInput = document.getElementById('percentageInput');
+
+            if (mode === 'pixels') {
+                pixelInputs.style.display = 'block';
+                percentageInput.style.display = 'none';
+            } else {
+                pixelInputs.style.display = 'none';
+                percentageInput.style.display = 'block';
+            }
+        }
+
+        function updateVideoInfo(type, info) {
+            const container = document.getElementById(`${type}VideoInfo`);
+            let html = '';
+            
+            if (info) {
+                html += `<p>Resolution: ${info.width}x${info.height}</p>`;
+                if (info.duration) {
+                    html += `<p>Duration: ${info.duration.toFixed(2)}s</p>`;
+                }
+                if (info.size) {
+                    html += `<p>File size: ${formatFileSize(info.size)}</p>`;
+                }
+                if (info.codec) {
+                    html += `<p>Codec: ${info.codec}</p>`;
+                }
+                if (info.bitrate) {
+                    html += `<p>Bitrate: ${Math.round(info.bitrate / 1024)} Kbps</p>`;
+                }
+            } else {
+                html = `<p>No ${type} video information available</p>`;
+            }
+            
+            container.innerHTML = html;
+        }
 
         function log(message, type = 'info') {
             const timestamp = new Date().toLocaleTimeString();
@@ -159,12 +407,13 @@
             console.log(formattedMessage);
             
             const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
-            debugLog.innerHTML += `<span class="${className}">${formattedMessage}</span>\n`;
-            debugLog.scrollTop = debugLog.scrollHeight;
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `<div class="${className}">${formattedMessage}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
         }
 
         function clearLog() {
-            debugLog.textContent = '';
+            document.getElementById('log').textContent = '';
             log('Log cleared');
         }
 
@@ -192,26 +441,43 @@
             }
         });
 
+        async function getVideoMetadata(videoFile) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.onloadedmetadata = () => {
+                    const metadata = {
+                        width: video.videoWidth,
+                        height: video.videoHeight,
+                        duration: video.duration,
+                        size: videoFile.size
+                    };
+                    URL.revokeObjectURL(video.src);
+                    resolve(metadata);
+                };
+                video.src = URL.createObjectURL(videoFile);
+            });
+        }
+
         // File selection handler
-        function handleFileSelection(file) {
+        async function handleFileSelection(file) {
             if (file && file.type.startsWith('video/')) {
                 log('File selected:');
                 log(`- Name: ${file.name}`);
-                log(`- Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+                log(`- Size: ${formatFileSize(file.size)}`);
                 log(`- Type: ${file.type}`);
 
-                // Create a video element to get the original dimensions
-                const video = document.createElement('video');
-                video.onloadedmetadata = () => {
-                    videoMetadata = {
-                        width: video.videoWidth,
-                        height: video.videoHeight
-                    };
-                    widthInput.value = video.videoWidth;
-                    heightInput.value = video.videoHeight;
-                    URL.revokeObjectURL(video.src);
-                };
-                video.src = URL.createObjectURL(file);
+                const metadata = await getVideoMetadata(file);
+                videoMetadata = metadata;
+                
+                widthInput.value = metadata.width;
+                heightInput.value = metadata.height;
+                scaleInput.value = 100;
+
+                updateVideoInfo('input', {
+                    ...metadata,
+                    codec: file.type.split('/')[1].toUpperCase()
+                });
 
                 loadFFmpeg()
                     .then(() => {
@@ -237,6 +503,10 @@
         const { createFFmpeg, fetchFile } = FFmpeg;
         const ffmpeg = createFFmpeg({
             log: true,
+            progress: ({ ratio }) => {
+                const progress = ratio * 100;
+                updateProgress(progress);
+            },
             logger: ({ type, message }) => {
                 log(`[FFmpeg] ${message}`, type === 'error' ? 'error' : 'info');
             }
@@ -263,6 +533,8 @@
         async function resizeVideo() {
             clearLog();
             resizeBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            updateProgress(0);
             
             try {
                 log('Starting video resize...');
@@ -281,13 +553,30 @@
                 ffmpeg.FS('writeFile', 'input.mp4', fileData);
                 log('File written to FFmpeg filesystem');
 
-                const width = parseInt(widthInput.value);
-                const height = parseInt(heightInput.value);
-                const outputFileName = 'output_resized.mp4';
+                // Get resize dimensions
+                let width, height;
+                const mode = document.getElementById('resizeMode').value;
+                if (mode === 'percentage') {
+                    const scale = parseInt(scaleInput.value) / 100;
+                    width = Math.round(videoMetadata.width * scale);
+                    height = Math.round(videoMetadata.height * scale);
+                } else {
+                    width = parseInt(widthInput.value);
+                    height = parseInt(heightInput.value);
+                }
 
+                // Get encoding settings
+                const crf = document.getElementById('crf').value;
+                const preset = document.getElementById('preset').value;
+                const codec = document.getElementById('codec').value;
+
+                const outputFileName = 'output_resized.mp4';
                 const args = [
                     '-i', 'input.mp4',
                     '-vf', `scale=${width}:${height}`,
+                    '-c:v', codec,
+                    '-crf', crf,
+                    '-preset', preset,
                     '-c:a', 'copy',
                     outputFileName
                 ];
@@ -303,6 +592,17 @@
                 const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
                 const videoUrl = URL.createObjectURL(videoBlob);
                 outputVideo.src = videoUrl;
+
+                // Update output video info
+                const outputMetadata = {
+                    width,
+                    height,
+                    size: data.length,
+                    codec: codec === 'libx264' ? 'H.264' : 'H.265',
+                    duration: videoMetadata.duration
+                };
+                updateVideoInfo('output', outputMetadata);
+
                 log('Video ready to play', 'success');
 
                 // Clean up
@@ -335,6 +635,22 @@
                 widthInput.value = Math.round(heightInput.value * ratio);
             }
         });
+
+        async function downloadVideo() {
+            if (!outputVideo.src) return;
+            
+            const response = await fetch(outputVideo.src);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'resized_video.mp4';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
     </script>
 </body>
 </html> 
