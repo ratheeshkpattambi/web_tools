@@ -263,13 +263,6 @@
         Video Resizer
     </h1>
 
-    <!-- Progress Bar -->
-    <div class="progress-container" id="progressContainer" style="display: none;">
-        <div class="progress-bar" id="progressBar">
-            <div class="progress-text">0%</div>
-        </div>
-    </div>
-
     <!-- Main Video Container -->
     <div class="video-container">
         <!-- Input Video -->
@@ -283,9 +276,6 @@
                 <div>Click or drag video here</div>
                 <input type="file" id="upload" accept="video/*">
             </div>
-            <div id="inputVideoInfo">
-                <p>No file selected</p>
-            </div>
         </div>
 
         <!-- Output Video -->
@@ -297,53 +287,13 @@
             <div class="video-preview">
                 <video id="output-video" controls></video>
             </div>
-            <div id="outputVideoInfo">
-                <p>Not processed yet</p>
-            </div>
         </div>
     </div>
 
-    <!-- Info Sections -->
-    <div class="info-sections">
-        <!-- Video Information -->
-        <div class="info-section">
-            <h3 onclick="toggleCollapsible(this.parentElement)">
-                <i class="fas fa-info-circle"></i>
-                Video Information
-                <i class="fas fa-chevron-down toggle"></i>
-            </h3>
-            <div class="collapsible-content">
-                <div class="info-content">
-                    <div class="info-grid">
-                        <div>
-                            <h4>Input Video</h4>
-                            <div id="inputVideoDetails">
-                                <p>No file selected</p>
-                            </div>
-                        </div>
-                        <div>
-                            <h4>Output Video</h4>
-                            <div id="outputVideoDetails">
-                                <p>Not processed yet</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Processing Log -->
-        <div class="info-section">
-            <h3 onclick="toggleCollapsible(this.parentElement)">
-                <i class="fas fa-terminal"></i>
-                Processing Log
-                <i class="fas fa-chevron-down toggle"></i>
-            </h3>
-            <div class="collapsible-content">
-                <div class="info-content">
-                    <div id="log"></div>
-                </div>
-            </div>
+    <!-- Progress Bar -->
+    <div class="progress-container" id="progressContainer" style="display: none;">
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-text">0%</div>
         </div>
     </div>
 
@@ -431,6 +381,50 @@
         </button>
     </div>
 
+    <!-- Info Sections -->
+    <div class="info-sections">
+        <!-- Video Information -->
+        <div class="info-section">
+            <h3 onclick="toggleCollapsible(this.parentElement)">
+                <i class="fas fa-info-circle"></i>
+                Video Information
+                <i class="fas fa-chevron-down toggle"></i>
+            </h3>
+            <div class="collapsible-content collapsed">
+                <div class="info-content">
+                    <div class="info-grid">
+                        <div>
+                            <h4>Input Video</h4>
+                            <div id="inputVideoDetails">
+                                <p>No file selected</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4>Output Video</h4>
+                            <div id="outputVideoDetails">
+                                <p>Not processed yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="info-section">
+            <h3 onclick="toggleCollapsible(this.parentElement)">
+                <i class="fas fa-terminal"></i>
+                Logs
+                <i class="fas fa-chevron-down toggle"></i>
+            </h3>
+            <div class="collapsible-content collapsed">
+                <div class="info-content">
+                    <div id="log"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
     <script>
         const debugLog = document.getElementById('debug-log');
@@ -482,10 +476,16 @@
                 pixelInputs.style.display = 'none';
                 percentageInput.style.display = 'block';
             }
+
+            // Re-enable resize button if we have a video
+            if (videoMetadata) {
+                resizeBtn.disabled = false;
+            }
         }
 
         function updateVideoInfo(type, info) {
             const container = document.getElementById(`${type}VideoInfo`);
+            const detailsContainer = document.getElementById(`${type}Details`);
             let html = '';
             
             if (info) {
@@ -503,10 +503,15 @@
                     html += `<p>Bitrate: ${Math.round(info.bitrate / 1024)} Kbps</p>`;
                 }
             } else {
-                html = `<p>No ${type} video information available</p>`;
+                html = `<p>No ${type.replace('input', 'input ').replace('output', 'output ')} video information available</p>`;
             }
             
-            container.innerHTML = html;
+            if (container) {
+                container.innerHTML = html;
+            }
+            if (detailsContainer) {
+                detailsContainer.innerHTML = html;
+            }
         }
 
         function log(message, type = 'info') {
@@ -580,54 +585,100 @@
             }
         });
 
-        // Update handleFileSelection to properly handle the preview state
-        async function handleFileSelection(file) {
-            if (file && file.type.startsWith('video/')) {
-                const inputPreview = document.getElementById('inputPreview');
-                
-                // Create video element
+        async function getVideoMetadata(videoFile) {
+            return new Promise((resolve) => {
                 const video = document.createElement('video');
-                video.controls = true;
-                video.src = URL.createObjectURL(file);
-                
-                // Clear the preview and add the video
-                inputPreview.innerHTML = '';
-                inputPreview.appendChild(video);
-                inputPreview.classList.remove('empty');
+                video.preload = 'metadata';
+                video.onloadedmetadata = () => {
+                    const metadata = {
+                        width: video.videoWidth,
+                        height: video.videoHeight,
+                        duration: video.duration,
+                        size: videoFile.size
+                    };
+                    URL.revokeObjectURL(video.src);
+                    resolve(metadata);
+                };
+                video.src = URL.createObjectURL(videoFile);
+            });
+        }
 
-                log('File selected:');
-                log(`- Name: ${file.name}`);
-                log(`- Size: ${formatFileSize(file.size)}`);
-                log(`- Type: ${file.type}`);
+        // Update handleFileSelection to properly handle button states and defaults
+        async function handleFileSelection(file) {
+            try {
+                if (file && file.type.startsWith('video/')) {
+                    const inputPreview = document.getElementById('inputPreview');
+                    if (!inputPreview) {
+                        throw new Error('Input preview element not found');
+                    }
+                    
+                    // Create video element
+                    const video = document.createElement('video');
+                    video.controls = true;
+                    video.src = URL.createObjectURL(file);
+                    
+                    // Clear the preview and add the video
+                    inputPreview.innerHTML = '';
+                    inputPreview.appendChild(video);
+                    inputPreview.classList.remove('empty');
 
-                const metadata = await getVideoMetadata(file);
-                videoMetadata = metadata;
-                
-                widthInput.value = metadata.width;
-                heightInput.value = metadata.height;
-                scaleInput.value = 100;
+                    log('File selected:');
+                    log(`- Name: ${file.name}`);
+                    log(`- Size: ${formatFileSize(file.size)}`);
+                    log(`- Type: ${file.type}`);
 
-                updateVideoInfo('input', {
-                    ...metadata,
-                    codec: file.type.split('/')[1].toUpperCase()
-                });
+                    const metadata = await getVideoMetadata(file);
+                    videoMetadata = metadata;
+                    
+                    // Set default values for resize
+                    if (widthInput) widthInput.value = metadata.width;
+                    if (heightInput) heightInput.value = metadata.height;
+                    if (scaleInput) scaleInput.value = 100;
+                    
+                    const crfInput = document.getElementById('crf');
+                    const presetSelect = document.getElementById('preset');
+                    const codecSelect = document.getElementById('codec');
+                    const maintainRatioInput = document.getElementById('maintain-ratio');
+                    const resizeModeSelect = document.getElementById('resizeMode');
+                    
+                    if (crfInput) crfInput.value = 23;
+                    if (presetSelect) presetSelect.value = 'medium';
+                    if (codecSelect) codecSelect.value = 'libx264';
+                    if (maintainRatioInput) maintainRatioInput.checked = true;
+                    if (resizeModeSelect) resizeModeSelect.value = 'pixels';
+                    
+                    updateResizeInputs();
 
-                // Also update the detailed info
-                updateVideoInfo('inputDetails', {
-                    ...metadata,
-                    codec: file.type.split('/')[1].toUpperCase()
-                });
+                    const videoInfo = {
+                        ...metadata,
+                        codec: file.type.split('/')[1].toUpperCase()
+                    };
 
-                loadFFmpeg()
-                    .then(() => {
+                    // Update both info sections
+                    updateVideoInfo('input', videoInfo);
+
+                    // Enable resize button immediately
+                    if (resizeBtn) {
                         resizeBtn.disabled = false;
                         log('Ready to resize video', 'success');
-                    })
-                    .catch(error => {
-                        log(`Failed to load FFmpeg: ${error.message}`, 'error');
-                    });
-            } else {
-                log('Please select a valid video file', 'error');
+                    }
+
+                    // Load FFmpeg in background
+                    try {
+                        await loadFFmpeg();
+                    } catch (error) {
+                        log(`Warning: FFmpeg loading error: ${error.message}`, 'error');
+                        // Don't disable resize button here, we'll try loading again when resizing
+                    }
+                } else {
+                    log('Please select a valid video file', 'error');
+                    if (resizeBtn) resizeBtn.disabled = true;
+                    resetOutputState();
+                }
+            } catch (error) {
+                log(`Error handling file selection: ${error.message}`, 'error');
+                if (resizeBtn) resizeBtn.disabled = true;
+                resetOutputState();
             }
         }
 
@@ -661,6 +712,7 @@
             }
         }
 
+        // Update resizeVideo function to handle button states
         async function resizeVideo() {
             clearLog();
             resizeBtn.disabled = true;
@@ -749,21 +801,55 @@
                 console.error(error);
             } finally {
                 resizeBtn.disabled = false;
+                progressContainer.style.display = 'none';
                 log('Processing complete - button re-enabled');
             }
         }
 
+        // Add reset function for when video processing is done
+        function resetOutputState() {
+            const outputVideo = document.getElementById('output-video');
+            outputVideo.src = '';
+            const inputPreview = document.getElementById('inputPreview');
+            if (!videoMetadata) {
+                inputPreview.innerHTML = `
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <div>Click or drag video here</div>
+                    <input type="file" id="upload" accept="video/*">
+                `;
+                inputPreview.classList.add('empty');
+            }
+            updateVideoInfo('output', null);
+            updateVideoInfo('outputDetails', null);
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+        }
+
+        // Update input handlers to enable resize button when values change
         widthInput.addEventListener('input', () => {
-            if (maintainRatioCheckbox.checked && videoMetadata) {
-                const ratio = videoMetadata.height / videoMetadata.width;
-                heightInput.value = Math.round(widthInput.value * ratio);
+            if (videoMetadata) {
+                if (maintainRatioCheckbox.checked) {
+                    const ratio = videoMetadata.height / videoMetadata.width;
+                    heightInput.value = Math.round(widthInput.value * ratio);
+                }
+                resizeBtn.disabled = false;
             }
         });
 
         heightInput.addEventListener('input', () => {
-            if (maintainRatioCheckbox.checked && videoMetadata) {
-                const ratio = videoMetadata.width / videoMetadata.height;
-                widthInput.value = Math.round(heightInput.value * ratio);
+            if (videoMetadata) {
+                if (maintainRatioCheckbox.checked) {
+                    const ratio = videoMetadata.width / videoMetadata.height;
+                    widthInput.value = Math.round(heightInput.value * ratio);
+                }
+                resizeBtn.disabled = false;
+            }
+        });
+
+        scaleInput.addEventListener('input', () => {
+            if (videoMetadata) {
+                resizeBtn.disabled = false;
             }
         });
 
