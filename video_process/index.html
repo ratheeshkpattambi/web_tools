@@ -6,10 +6,11 @@
     <!-- Security headers for SharedArrayBuffer -->
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
-    <title>Video Processor (Build #21)</title>
+    <title>Video Processor (Build #25)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/styles.css">
     <!-- Using CDN files -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
@@ -59,204 +60,339 @@
     </style>
 </head>
 <body>
-    <a href="/" class="home-link">← Home</a>
-    <h1>Video Processor</h1>
-    <div class="file-input-container" id="dropZone">
-        <div>Drag and drop a video file here</div>
-        <div>- or -</div>
-        <div class="upload-buttons">
-            <button class="btn" onclick="document.getElementById('upload').click()">Browse Files</button>
+    <div class="container">
+        <h1>
+            <i class="fas fa-film"></i>
+            Video Processor
+        </h1>
+
+        <div id="progressContainer" class="progress-container" style="display: none;">
+            <div id="progressBar" class="progress-bar">
+                <div class="progress-text">0%</div>
+            </div>
         </div>
-        <input type="file" id="upload" accept="video/*">
+
+        <div class="video-container">
+            <div class="video-box">
+                <div id="inputPreview" class="video-preview">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Click or drag video here</p>
+                </div>
+                <video id="inputVideo" style="display: none;" controls></video>
+            </div>
+            <div class="video-box">
+                <div id="outputPreview" class="video-preview">
+                    <i class="fas fa-video"></i>
+                    <p>Processed video will appear here</p>
+                </div>
+                <video id="outputVideo" style="display: none;" controls></video>
+            </div>
+        </div>
+
+        <div class="settings-grid">
+            <div class="settings-section">
+                <h3>
+                    <i class="fas fa-sliders"></i>
+                    Processing Settings
+                </h3>
+                <div class="settings-content">
+                    <label>
+                        <input type="checkbox" id="grayscale" checked>
+                        Convert to Grayscale
+                    </label>
+                    <div class="trim-controls">
+                        <label>
+                            <input type="checkbox" id="trim">
+                            Trim Video
+                        </label>
+                        <div id="trimSettings" style="display: none;">
+                            <div class="input-group">
+                                <label for="startTime">Start Time (seconds):</label>
+                                <input type="number" id="startTime" value="0" min="0" step="0.1">
+                            </div>
+                            <div class="input-group">
+                                <label for="duration">Duration (seconds):</label>
+                                <input type="number" id="duration" value="10" min="0" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>
+                    <i class="fas fa-cog"></i>
+                    Encoding Settings
+                </h3>
+                <div class="settings-content">
+                    <div class="input-group">
+                        <label for="crf">Quality (CRF):</label>
+                        <input type="number" id="crf" value="23" min="0" max="51">
+                    </div>
+                    <div class="input-group">
+                        <label for="preset">Preset:</label>
+                        <select id="preset">
+                            <option value="ultrafast">Ultrafast</option>
+                            <option value="superfast">Superfast</option>
+                            <option value="veryfast">Very Fast</option>
+                            <option value="faster">Faster</option>
+                            <option value="fast">Fast</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="slow">Slow</option>
+                            <option value="slower">Slower</option>
+                            <option value="veryslow">Very Slow</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="codec">Codec:</label>
+                        <select id="codec">
+                            <option value="libx264" selected>H.264</option>
+                            <option value="libvpx-vp9">VP9</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="processBtn" class="btn" disabled>
+                <i class="fas fa-cog"></i>
+                Process Video
+            </button>
+            <button id="downloadBtn" class="btn" disabled>
+                <i class="fas fa-download"></i>
+                Download
+            </button>
+        </div>
+
+        <div class="info-section">
+            <div class="collapsible">
+                <h3>
+                    <i class="fas fa-info-circle"></i>
+                    Video Information
+                </h3>
+                <div id="videoInfo" class="info-content">
+                    <div id="inputVideoDetails">No video selected</div>
+                    <div id="outputVideoDetails"></div>
+                </div>
+            </div>
+            <div class="collapsible">
+                <h3>
+                    <i class="fas fa-terminal"></i>
+                    Logs
+                </h3>
+                <div id="debugLog" class="info-content"></div>
+            </div>
+        </div>
     </div>
-    <div class="controls">
-        <button class="btn" onclick="convertToGrayscale()" id="grayscaleBtn" disabled>Convert to Grayscale</button>
-        <button class="btn" onclick="trimVideo()" id="trimBtn" disabled>Trim First 3 Seconds</button>
-    </div>
-    <video id="output-video" controls></video>
-    <pre id="debug-log"></pre>
 
     <script>
-        const debugLog = document.getElementById('debug-log');
-        const uploadInput = document.getElementById('upload');
-        const outputVideo = document.getElementById('output-video');
-        const grayscaleBtn = document.getElementById('grayscaleBtn');
-        const trimBtn = document.getElementById('trimBtn');
+        // Initialize variables
+        let inputFile = null;
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ log: true });
 
-        function log(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const formattedMessage = `[${timestamp}] ${message}`;
-            console.log(formattedMessage);
-            
-            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
-            debugLog.innerHTML += `<span class="${className}">${formattedMessage}</span>\n`;
+        // DOM Elements
+        const inputPreview = document.getElementById('inputPreview');
+        const inputVideo = document.getElementById('inputVideo');
+        const outputPreview = document.getElementById('outputPreview');
+        const outputVideo = document.getElementById('outputVideo');
+        const processBtn = document.getElementById('processBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const grayscaleCheckbox = document.getElementById('grayscale');
+        const trimCheckbox = document.getElementById('trim');
+        const trimSettings = document.getElementById('trimSettings');
+        const startTimeInput = document.getElementById('startTime');
+        const durationInput = document.getElementById('duration');
+        const crfInput = document.getElementById('crf');
+        const presetSelect = document.getElementById('preset');
+        const codecSelect = document.getElementById('codec');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = progressBar.querySelector('.progress-text');
+        const debugLog = document.getElementById('debugLog');
+
+        // Event Listeners
+        trimCheckbox.addEventListener('change', () => {
+            trimSettings.style.display = trimCheckbox.checked ? 'block' : 'none';
+        });
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Update progress
+        function updateProgress(progress) {
+            progressContainer.style.display = 'block';
+            progressText.textContent = Math.round(progress.ratio * 100) + '%';
+            progressBar.style.setProperty('--progress', progress.ratio * 100 + '%');
+        }
+
+        // Log messages
+        function log(message) {
+            const now = new Date().toLocaleTimeString();
+            debugLog.innerHTML += `[${now}] ${message}<br>`;
             debugLog.scrollTop = debugLog.scrollHeight;
         }
 
-        function clearLog() {
-            debugLog.textContent = '';
-            log('Log cleared');
+        // Get video metadata
+        async function getVideoMetadata(videoElement, file) {
+            return new Promise((resolve) => {
+                videoElement.onloadedmetadata = () => {
+                    const metadata = {
+                        duration: videoElement.duration.toFixed(2),
+                        width: videoElement.videoWidth,
+                        height: videoElement.videoHeight,
+                        size: formatFileSize(file.size)
+                    };
+                    resolve(metadata);
+                };
+                videoElement.src = URL.createObjectURL(file);
+            });
         }
 
-        log('Initializing application...');
+        // Update video info
+        async function updateVideoInfo(type, file) {
+            const container = document.getElementById(`${type}VideoDetails`);
+            if (!container) return;
 
-        // Drag and drop handlers
-        const dropZone = document.getElementById('dropZone');
+            if (!file) {
+                container.innerHTML = type === 'input' ? 'No video selected' : '';
+                return;
+            }
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
+            const video = type === 'input' ? inputVideo : outputVideo;
+            const metadata = await getVideoMetadata(video, file);
             
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                uploadInput.files = files;
-                handleFileSelection(files[0]);
-            }
-        });
-
-        // File selection handler
-        function handleFileSelection(file) {
-            if (file && file.type.startsWith('video/')) {
-                log('File selected:');
-                log(`- Name: ${file.name}`);
-                log(`- Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-                log(`- Type: ${file.type}`);
-
-                loadFFmpeg()
-                    .then(() => {
-                        grayscaleBtn.disabled = false;
-                        trimBtn.disabled = false;
-                        log('Ready to process video', 'success');
-                    })
-                    .catch(error => {
-                        log(`Failed to load FFmpeg: ${error.message}`, 'error');
-                    });
-            } else {
-                log('Please select a valid video file', 'error');
-            }
+            container.innerHTML = `
+                <strong>${type === 'input' ? 'Input' : 'Output'} Video:</strong><br>
+                Size: ${metadata.size}<br>
+                Duration: ${metadata.duration}s<br>
+                Resolution: ${metadata.width}x${metadata.height}
+            `;
         }
 
-        // Update file input change handler
-        uploadInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                handleFileSelection(file);
+        // Handle file selection
+        async function handleFileSelection(file) {
+            if (!file || !file.type.startsWith('video/')) {
+                log('Error: Please select a valid video file');
+                return;
             }
+
+            inputFile = file;
+            inputPreview.style.display = 'none';
+            inputVideo.style.display = 'block';
+            await updateVideoInfo('input', file);
+            processBtn.disabled = false;
+            log('Video loaded successfully');
+        }
+
+        // Setup drag and drop
+        inputPreview.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.onchange = (e) => handleFileSelection(e.target.files[0]);
+            input.click();
         });
 
-        // Create FFmpeg instance
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ 
-            log: true,
-            logger: ({ type, message }) => {
-                log(`[FFmpeg] ${message}`, type === 'error' ? 'error' : 'info');
-            }
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            inputPreview.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
         });
-        log('FFmpeg instance created');
 
-        let isLoaded = false;
+        inputPreview.addEventListener('dragenter', () => inputPreview.classList.add('drag-over'));
+        inputPreview.addEventListener('dragleave', () => inputPreview.classList.remove('drag-over'));
+        inputPreview.addEventListener('drop', (e) => {
+            inputPreview.classList.remove('drag-over');
+            handleFileSelection(e.dataTransfer.files[0]);
+        });
 
-        async function loadFFmpeg() {
+        // Process video
+        processBtn.addEventListener('click', async () => {
+            if (!inputFile) return;
+
             try {
-                if (!isLoaded) {
+                processBtn.disabled = true;
+                downloadBtn.disabled = true;
+                outputPreview.style.display = 'flex';
+                outputVideo.style.display = 'none';
+                progressContainer.style.display = 'block';
+
+                if (!ffmpeg.isLoaded()) {
                     log('Loading FFmpeg...');
                     await ffmpeg.load();
-                    isLoaded = true;
-                    log('FFmpeg loaded successfully', 'success');
-                } else {
-                    log('FFmpeg already loaded');
-                }
-            } catch (error) {
-                log(`FFmpeg loading error: ${error.message}`, 'error');
-                throw error;
-            }
-        }
-
-        async function processVideo(processType) {
-            clearLog();
-            grayscaleBtn.disabled = true;
-            trimBtn.disabled = true;
-            
-            try {
-                log(`Starting ${processType} processing...`);
-                await loadFFmpeg();
-
-                const videoFile = uploadInput.files[0];
-                if (!videoFile) {
-                    throw new Error('No video file selected');
                 }
 
-                log(`Reading input file: ${videoFile.name}`);
-                const fileData = await fetchFile(videoFile);
-                log(`File data read successfully (${fileData.byteLength} bytes)`);
+                const inputFileName = 'input.mp4';
+                const outputFileName = 'output.mp4';
+                
+                log('Starting video processing...');
+                ffmpeg.setProgress(updateProgress);
+                
+                ffmpeg.FS('writeFile', inputFileName, await fetchFile(inputFile));
 
-                log('Writing file to FFmpeg filesystem...');
-                ffmpeg.FS('writeFile', 'input.mp4', fileData);
-                log('File written to FFmpeg filesystem');
+                let filters = [];
+                if (grayscaleCheckbox.checked) {
+                    filters.push('format=gray');
+                }
 
-                const outputFileName = processType === 'grayscale' 
-                    ? 'output_grayscale.mp4' 
-                    : 'output_trimmed.mp4';
+                let command = ['-i', inputFileName];
+                
+                if (trimCheckbox.checked) {
+                    command.push('-ss', startTimeInput.value);
+                    command.push('-t', durationInput.value);
+                }
 
-                const args = processType === 'grayscale'
-                    ? ['-i', 'input.mp4', '-vf', 'hue=s=0', '-c:a', 'copy', outputFileName]
-                    : ['-i', 'input.mp4', '-t', '3', '-c', 'copy', outputFileName];
+                if (filters.length > 0) {
+                    command.push('-vf', filters.join(','));
+                }
 
-                log(`Running FFmpeg command: ffmpeg ${args.join(' ')}`);
-                await ffmpeg.run(...args);
-                log('FFmpeg processing complete', 'success');
+                command = command.concat([
+                    '-c:v', codecSelect.value,
+                    '-crf', crfInput.value,
+                    '-preset', presetSelect.value,
+                    '-movflags', '+faststart',
+                    outputFileName
+                ]);
 
-                log('Reading output file...');
+                log('FFmpeg command: ffmpeg ' + command.join(' '));
+                await ffmpeg.run(...command);
+
                 const data = ffmpeg.FS('readFile', outputFileName);
-                log(`Output file read: ${data.length} bytes`);
-
-                const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
-                const videoUrl = URL.createObjectURL(videoBlob);
-                outputVideo.src = videoUrl;
-                log('Video ready to play', 'success');
-
-                // Clean up
-                try {
-                    ffmpeg.FS('unlink', 'input.mp4');
-                    ffmpeg.FS('unlink', outputFileName);
-                    log('Temporary files cleaned up');
-                } catch (error) {
-                    log(`Cleanup warning: ${error.message}`);
-                }
+                const outputBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                
+                outputPreview.style.display = 'none';
+                outputVideo.style.display = 'block';
+                await updateVideoInfo('output', outputBlob);
+                
+                outputVideo.src = URL.createObjectURL(outputBlob);
+                downloadBtn.onclick = () => {
+                    const a = document.createElement('a');
+                    a.href = outputVideo.src;
+                    a.download = 'processed_video.mp4';
+                    a.click();
+                };
+                
+                downloadBtn.disabled = false;
+                log('Video processing completed successfully');
             } catch (error) {
-                log(`Processing error: ${error.message}`, 'error');
-                console.error(error);
+                log('Error: ' + error.message);
             } finally {
-                grayscaleBtn.disabled = false;
-                trimBtn.disabled = false;
-                log('Processing complete - buttons re-enabled');
+                processBtn.disabled = false;
+                progressContainer.style.display = 'none';
             }
-        }
+        });
 
-        async function convertToGrayscale() {
-            await processVideo('grayscale');
-        }
-
-        async function trimVideo() {
-            await processVideo('trim');
-        }
-
-        // Make functions available globally
-        window.convertToGrayscale = convertToGrayscale;
-        window.trimVideo = trimVideo;
-
-        // Initial setup log
-        log('Application ready - please select a video file', 'success');
+        // Initialize
+        log('Ready to process videos. Select a file to begin.');
     </script>
 </body>
 </html>
